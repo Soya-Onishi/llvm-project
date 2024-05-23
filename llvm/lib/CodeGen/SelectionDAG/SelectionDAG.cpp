@@ -7953,7 +7953,7 @@ SDValue SelectionDAG::getMemcpy(SDValue Chain, const SDLoc &dl, SDValue Dst,
       .setLibCallee(TLI->getLibcallCallingConv(RTLIB::MEMCPY),
                     Dst.getValueType().getTypeForEVT(*getContext()),
                     getExternalSymbol(TLI->getLibcallName(RTLIB::MEMCPY),
-                                      TLI->getPointerTy(getDataLayout())),
+                                      TLI->getProgramPointerTy(getDataLayout())),
                     std::move(Args))
       .setDiscardResult()
       .setTailCall(isTailCall);
@@ -7993,7 +7993,7 @@ SDValue SelectionDAG::getAtomicMemcpy(SDValue Chain, const SDLoc &dl,
       .setLibCallee(TLI->getLibcallCallingConv(LibraryCall),
                     Type::getVoidTy(*getContext()),
                     getExternalSymbol(TLI->getLibcallName(LibraryCall),
-                                      TLI->getPointerTy(getDataLayout())),
+                                      TLI->getProgramPointerTy(getDataLayout())),
                     std::move(Args))
       .setDiscardResult()
       .setTailCall(isTailCall);
@@ -8055,7 +8055,7 @@ SDValue SelectionDAG::getMemmove(SDValue Chain, const SDLoc &dl, SDValue Dst,
       .setLibCallee(TLI->getLibcallCallingConv(RTLIB::MEMMOVE),
                     Dst.getValueType().getTypeForEVT(*getContext()),
                     getExternalSymbol(TLI->getLibcallName(RTLIB::MEMMOVE),
-                                      TLI->getPointerTy(getDataLayout())),
+                                      TLI->getProgramPointerTy(getDataLayout())),
                     std::move(Args))
       .setDiscardResult()
       .setTailCall(isTailCall);
@@ -8095,7 +8095,7 @@ SDValue SelectionDAG::getAtomicMemmove(SDValue Chain, const SDLoc &dl,
       .setLibCallee(TLI->getLibcallCallingConv(LibraryCall),
                     Type::getVoidTy(*getContext()),
                     getExternalSymbol(TLI->getLibcallName(LibraryCall),
-                                      TLI->getPointerTy(getDataLayout())),
+                                      TLI->getProgramPointerTy(getDataLayout())),
                     std::move(Args))
       .setDiscardResult()
       .setTailCall(isTailCall);
@@ -8173,7 +8173,7 @@ SDValue SelectionDAG::getMemset(SDValue Chain, const SDLoc &dl, SDValue Dst,
     Args.push_back(CreateEntry(Size, DL.getIntPtrType(Ctx)));
     CLI.setLibCallee(
         TLI->getLibcallCallingConv(RTLIB::BZERO), Type::getVoidTy(Ctx),
-        getExternalSymbol(BzeroName, TLI->getPointerTy(DL)), std::move(Args));
+        getExternalSymbol(BzeroName, TLI->getProgramPointerTy(DL)), std::move(Args));
   } else {
     TargetLowering::ArgListTy Args;
     Args.push_back(CreateEntry(Dst, PointerType::getUnqual(Ctx)));
@@ -8182,7 +8182,7 @@ SDValue SelectionDAG::getMemset(SDValue Chain, const SDLoc &dl, SDValue Dst,
     CLI.setLibCallee(TLI->getLibcallCallingConv(RTLIB::MEMSET),
                      Dst.getValueType().getTypeForEVT(Ctx),
                      getExternalSymbol(TLI->getLibcallName(RTLIB::MEMSET),
-                                       TLI->getPointerTy(DL)),
+                                       TLI->getProgramPointerTy(DL)),
                      std::move(Args));
   }
 
@@ -8223,7 +8223,7 @@ SDValue SelectionDAG::getAtomicMemset(SDValue Chain, const SDLoc &dl,
       .setLibCallee(TLI->getLibcallCallingConv(LibraryCall),
                     Type::getVoidTy(*getContext()),
                     getExternalSymbol(TLI->getLibcallName(LibraryCall),
-                                      TLI->getPointerTy(getDataLayout())),
+                                      TLI->getProgramPointerTy(getDataLayout())),
                     std::move(Args))
       .setDiscardResult()
       .setTailCall(isTailCall);
@@ -12894,7 +12894,7 @@ SDValue SelectionDAG::makeStateFunctionCall(unsigned LibFunc, SDValue Ptr,
   Args.push_back(Entry);
   RTLIB::Libcall LC = static_cast<RTLIB::Libcall>(LibFunc);
   SDValue Callee = getExternalSymbol(TLI->getLibcallName(LC),
-                                     TLI->getPointerTy(getDataLayout()));
+                                     TLI->getProgramPointerTy(getDataLayout()));
   TargetLowering::CallLoweringInfo CLI(*this);
   CLI.setDebugLoc(DLoc).setChain(InChain).setLibCallee(
       TLI->getLibcallCallingConv(LC), Type::getVoidTy(*getContext()), Callee,

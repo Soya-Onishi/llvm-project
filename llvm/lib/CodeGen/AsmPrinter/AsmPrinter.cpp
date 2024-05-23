@@ -406,7 +406,12 @@ const DataLayout &AsmPrinter::getDataLayout() const {
 // Do not use the cached DataLayout because some client use it without a Module
 // (dsymutil, llvm-dwarfdump).
 unsigned AsmPrinter::getPointerSize() const {
-  return TM.getPointerSize(0); // FIXME: Default address space
+  // TODO: This if statement is essential? Refactor datalayout string.
+  if(TM.getTargetTriple().isRL78()) {
+    return TM.getPointerSize(2);
+  } else {
+    return TM.getPointerSize(0); // FIXME: Default address space
+  }
 }
 
 const MCSubtargetInfo &AsmPrinter::getSubtargetInfo() const {

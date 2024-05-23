@@ -926,7 +926,12 @@ Constant *SymbolicallyEvaluateGEP(const GEPOperator *GEP,
   auto *PTy = cast<PointerType>(Ptr->getType());
   if ((Ptr->isNullValue() || BasePtr != 0) &&
       !DL.isNonIntegralPointerType(PTy)) {
-    Constant *C = ConstantInt::get(Ptr->getContext(), Offset + BasePtr);
+    const auto IndexSize = DL.getIndexSize(PTy->getAddressSpace());
+    const uint64_t Mask = UINT64_MAX ^ ((1 << IndexSize) - 1);
+    const auto HiPtr = BasePtr & Mask;
+    const auto LoPtr = (Offset + BasePtr) & ~Mask;
+    const auto NewPtr = HiPtr | LoPtr;
+    Constant *C = ConstantInt::get(Ptr->getContext(), NewPtr);
     return ConstantExpr::getIntToPtr(C, ResTy);
   }
 

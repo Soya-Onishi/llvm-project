@@ -6009,7 +6009,7 @@ void SelectionDAGBuilder::lowerCallToExternalSymbol(const CallInst &I,
   assert(FunctionName && "FunctionName must not be nullptr");
   SDValue Callee = DAG.getExternalSymbol(
       FunctionName,
-      DAG.getTargetLoweringInfo().getPointerTy(DAG.getDataLayout()));
+      DAG.getTargetLoweringInfo().getProgramPointerTy(DAG.getDataLayout()));
   LowerCallTo(I, Callee, I.isTailCall(), I.isMustTailCall());
 }
 
@@ -7109,7 +7109,7 @@ void SelectionDAGBuilder::visitIntrinsicCall(const CallInst &I,
     CLI.setDebugLoc(sdl).setChain(getRoot()).setLibCallee(
         CallingConv::C, I.getType(),
         DAG.getExternalSymbol(TrapFuncName.data(),
-                              TLI.getPointerTy(DAG.getDataLayout())),
+                              TLI.getProgramPointerTy(DAG.getDataLayout())),
         std::move(Args));
 
     std::pair<SDValue, SDValue> Result = TLI.LowerCallTo(CLI);
@@ -9541,8 +9541,12 @@ void SelectionDAGBuilder::visitInlineAsm(const CallBase &Call,
         // See InlineAsm.h isUseOperandTiedToDef.
         Flag.clearMemConstraint();
         Flag.setMatchingOp(OpInfo.getMatchedOperand());
-        AsmNodeOperands.push_back(DAG.getTargetConstant(
-            Flag, getCurSDLoc(), TLI.getPointerTy(DAG.getDataLayout())));
+        if(llvm::isUInt<32>(Flag) && (TLI.getPointerTy(DAG.getDataLayout()).getSizeInBits() < 32))
+          AsmNodeOperands.push_back(DAG.getTargetConstant(
+            Flag, getCurSDLoc(), MVT::i32));
+        else
+          AsmNodeOperands.push_back(DAG.getTargetConstant(
+              Flag, getCurSDLoc(), TLI.getPointerTy(DAG.getDataLayout())));
         AsmNodeOperands.push_back(AsmNodeOperands[CurOp+1]);
         break;
       }

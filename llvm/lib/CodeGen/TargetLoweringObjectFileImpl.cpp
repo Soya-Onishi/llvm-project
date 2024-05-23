@@ -486,7 +486,9 @@ static SectionKind getELFKindForNamedSection(StringRef Name, SectionKind K) {
       Name.starts_with(".gnu.linkonce.b.") ||
       Name.starts_with(".llvm.linkonce.b.") || Name == ".sbss" ||
       Name.starts_with(".sbss.") || Name.starts_with(".gnu.linkonce.sb.") ||
-      Name.starts_with(".llvm.linkonce.sb."))
+      Name.starts_with(".llvm.linkonce.sb.") ||
+      Name.starts_with(".bssf") ||
+      Name.starts_with(".bssf."))
     return SectionKind::getBSS();
 
   if (Name == ".tdata" || Name.starts_with(".tdata.") ||
@@ -525,6 +527,18 @@ static unsigned getELFSectionType(StringRef Name, SectionKind K) {
 
   if (hasPrefix(Name, ".llvm.offloading"))
     return ELF::SHT_LLVM_OFFLOADING;
+
+  if (hasPrefix(Name, ".bss_AT"))
+	  return ELF::SHT_NOBITS;
+
+  if (hasPrefix(Name, ".bssf_AT"))
+	  return ELF::SHT_NOBITS;
+
+  if (hasPrefix(Name, ".bssf"))
+	  return ELF::SHT_NOBITS;
+
+  if (hasPrefix(Name, ".sbss"))
+	  return ELF::SHT_NOBITS;
 
   if (K.isBSS() || K.isThreadBSS())
     return ELF::SHT_NOBITS;
