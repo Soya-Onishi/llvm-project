@@ -627,8 +627,8 @@ void RL78InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
       } else {
         BuildMI(MBB, I, DL, get(RL78::XCH_A_r), RL78::R1)
             .addReg(DestReg, RegState::Define)
-            .addReg(RL78::R1, RegState::Kill)
-            .addReg(DestReg, RegState::Kill);
+            .addReg(RL78::R1, RegState::Kill | RegState::Undef)
+            .addReg(DestReg, RegState::Kill | RegState::Undef);
         // mov A, r
         BuildMI(MBB, I, DL, get(RL78::MOV_A_r), RL78::R1)
             .addReg(SrcReg, getKillRegState(KillSrc));
