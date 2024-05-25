@@ -9,11 +9,19 @@
 #ifndef LLVM_LIB_TARGET_RL78_TARGETINFO_RL78TARGETINFO_H
 #define LLVM_LIB_TARGET_RL78_TARGETINFO_RL78TARGETINFO_H
 
+#include "llvm/MC/TargetRegistry.h"
+#include "llvm/Support/Process.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/ADT/StringRef.h"
+
 namespace llvm {
 
 class Target;
 
 Target &getTheRL78Target();
+
+void RL78ReportError(bool condition, StringRef Reason,
+                     StringRef MoreDetails = "Error: ");
 
 } // end namespace llvm
 

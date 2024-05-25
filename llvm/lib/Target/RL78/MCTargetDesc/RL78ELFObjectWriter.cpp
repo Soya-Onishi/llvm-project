@@ -8,6 +8,7 @@
 
 #include "MCTargetDesc/RL78MCExpr.h"
 #include "RL78.h"
+#include "TargetInfo/RL78TargetInfo.h"
 #include "llvm/MC/MCELFObjectWriter.h"
 #include "llvm/MC/MCValue.h"
 

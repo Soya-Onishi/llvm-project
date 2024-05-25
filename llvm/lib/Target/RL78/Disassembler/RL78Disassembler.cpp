@@ -13,10 +13,10 @@
 #include "RL78Subtarget.h"
 #include "TargetInfo/RL78TargetInfo.h"
 #include "llvm/MC/MCContext.h"
-#include "llvm/MC/MCDisassembler/MCDisassembler.h"
 #include "llvm/MC/MCDecoderOps.h"
-#include "llvm/Object/ObjectFile.h"
+#include "llvm/MC/MCDisassembler/MCDisassembler.h"
 #include "llvm/MC/TargetRegistry.h"
+#include "llvm/Object/ObjectFile.h"
 
 using namespace llvm;
 
@@ -50,22 +50,22 @@ public:
   /*bool tryAddingSymbolicOperand(MCInst &Inst, raw_ostream &cStream,
                                 int64_t Value, uint64_t Address, bool IsBranch,
                                 uint64_t Offset, uint64_t InstSize) override;*/
- // This function tries to add a symbolic operand in place of the immediate
-// Value in the MCInst. The immediate Value has had any PC adjustment made by
-// the caller. If the instruction is a branch instruction then IsBranch is true,
-// else false. If the getOpInfo() function was set as part of the
-// setupForSymbolicDisassembly() call then that function is called to get any
-// symbolic information at the Address for this instruction. If that returns
-// non-zero then the symbolic information it returns is used to create an MCExpr
-// and that is added as an operand to the MCInst. If getOpInfo() returns zero
-// and IsBranch is true then a symbol look up for Value is done and if a symbol
-// is found an MCExpr is created with that, else an MCExpr with Value is
-// created. This function returns true if it adds an operand to the MCInst and
-// false otherwise.
+  // This function tries to add a symbolic operand in place of the immediate
+  // Value in the MCInst. The immediate Value has had any PC adjustment made by
+  // the caller. If the instruction is a branch instruction then IsBranch is
+  // true, else false. If the getOpInfo() function was set as part of the
+  // setupForSymbolicDisassembly() call then that function is called to get any
+  // symbolic information at the Address for this instruction. If that returns
+  // non-zero then the symbolic information it returns is used to create an
+  // MCExpr and that is added as an operand to the MCInst. If getOpInfo()
+  // returns zero and IsBranch is true then a symbol look up for Value is done
+  // and if a symbol is found an MCExpr is created with that, else an MCExpr
+  // with Value is created. This function returns true if it adds an operand to
+  // the MCInst and false otherwise.
   bool tryAddingSymbolicOperand(MCInst &Inst, raw_ostream &cStream,
-                                        int64_t Value, uint64_t Address,
-                                        bool IsBranch, uint64_t Offset,
-                                        uint64_t OpSize, uint64_t InstSize) override;
+                                int64_t Value, uint64_t Address, bool IsBranch,
+                                uint64_t Offset, uint64_t OpSize,
+                                uint64_t InstSize) override;
 
   void tryAddingPcLoadReferenceComment(raw_ostream &cStream, int64_t Value,
                                        uint64_t Address) override;
@@ -178,12 +178,11 @@ struct OPT {
 };
 
 static std::map<unsigned char, unsigned int> saddrLookup = {
-    {0xF8, RL78::R0},  {0xF9, RL78::R1},  {0xFA, RL78::R2},  {0xFB, RL78::R3},
-    {0xFC, RL78::R4},  {0xFD, RL78::R5},  {0xFE, RL78::R6},  {0xFF, RL78::R7}};
+    {0xF8, RL78::R0}, {0xF9, RL78::R1}, {0xFA, RL78::R2}, {0xFB, RL78::R3},
+    {0xFC, RL78::R4}, {0xFD, RL78::R5}, {0xFE, RL78::R6}, {0xFF, RL78::R7}};
 
 static std::map<unsigned char, unsigned int> saddrpLookup = {
-    {0xF8, RL78::RP0},  {0xFA, RL78::RP2},  {0xFC, RL78::RP4},
-    {0xFE, RL78::RP6}};
+    {0xF8, RL78::RP0}, {0xFA, RL78::RP2}, {0xFC, RL78::RP4}, {0xFE, RL78::RP6}};
 
 struct InstructionInfo {
   int OpCode;
@@ -2710,7 +2709,7 @@ static void handleOperand(uint64_t Address, MCInst &Instr,
     unsigned int addr20 =
         extract20bitValue(Bytes, info, SBP::adrs, SBP::adrh, SBP::adrl);
     if (!Dis->tryAddingSymbolicOperand(Instr, addr20, 0, true,
-                                       /* Offset */ 0, 0, /* InstSize */3)) {
+                                       /* Offset */ 0, 0, /* InstSize */ 3)) {
       Instr.addOperand(MCOperand::createImm(addr20));
     }
   } break;
@@ -2726,7 +2725,7 @@ static void handleOperand(uint64_t Address, MCInst &Instr,
     }
 
     if (!Dis->tryAddingSymbolicOperand(Instr, addr16, Address, false,
-                                       /* Offset */ 0, 0, /* InstSize */3))
+                                       /* Offset */ 0, 0, /* InstSize */ 3))
       Instr.addOperand(MCOperand::createImm(addr16));
 
   } break;
@@ -2746,7 +2745,7 @@ static void handleOperand(uint64_t Address, MCInst &Instr,
     signed int jdsp16 = extract16bitValue(Bytes, info, SBP::adrh, SBP::adrl);
     if (!Dis->tryAddingSymbolicOperand(
             Instr, jdsp16 + Address + info.BitParts.size() + 1, Address, true,
-            /* Offset */ 0, 0, /* InstSize */3))
+            /* Offset */ 0, 0, /* InstSize */ 3))
       Instr.addOperand(MCOperand::createImm(jdsp16));
 
   } break;
@@ -2998,10 +2997,9 @@ DecodeStatus RL78Disassembler::getInstruction(MCInst &Instr, uint64_t &Size,
 
 // Try to find symbol name for specified label
 bool RL78Symbolizer::tryAddingSymbolicOperand(
-    MCInst &Inst, raw_ostream& /*cStream*/,
-                                        int64_t Value, uint64_t /*Address*/,
-                                        bool IsBranch, uint64_t /*Offset*/,
-                                        uint64_t /*OpSize*/, uint64_t /*InstSize*/) {
+    MCInst &Inst, raw_ostream & /*cStream*/, int64_t Value,
+    uint64_t /*Address*/, bool IsBranch, uint64_t /*Offset*/,
+    uint64_t /*OpSize*/, uint64_t /*InstSize*/) {
   auto *AllSymbols =
       static_cast<std::map<object::SectionRef, SectionSymbolsTy> *>(DisInfo);
   if (!AllSymbols)
@@ -3017,12 +3015,14 @@ bool RL78Symbolizer::tryAddingSymbolicOperand(
           SecSyms.first.getAddress() <= static_cast<uint64_t>(Value) &&
           SecSyms.first.getSize() + SecSyms.first.getAddress() >=
               static_cast<uint64_t>(Value))
-        for (SymbolInfoTy &symbol : SecSyms.second)
+        for (SymbolInfoTy &symbol : SecSyms.second) {
           if (symbol.Addr <= static_cast<uint64_t>(Value)) {
             matchedSymbol = symbol.Name;
             startSymbolAddress = symbol.Addr;
-          } else
+          } else {
             break;
+          }
+        }
 
   } else
     for (std::pair<const object::SectionRef, SectionSymbolsTy> &SecSyms :
@@ -3039,7 +3039,8 @@ bool RL78Symbolizer::tryAddingSymbolicOperand(
   if (matchedSymbol != "") {
     auto *Sym = Ctx.getOrCreateSymbol(matchedSymbol);
     const auto *SymExpr = MCSymbolRefExpr::create(Sym, Ctx);
-    if (startSymbolAddress != 0 && startSymbolAddress != Value)
+    if (startSymbolAddress != 0 &&
+        startSymbolAddress != static_cast<uint64_t>(Value))
       Inst.addOperand(MCOperand::createExpr(MCBinaryExpr::createAdd(
           SymExpr, MCConstantExpr::create(Value - startSymbolAddress, Ctx),
           Ctx)));

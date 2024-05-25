@@ -42,8 +42,8 @@ struct Specialization {
                  char operandOffset = 0, bool zeroImm = false,
                  bool ucharImm = true)
       : NewOpCode(newOpCode), OperandOffset(operandOffset), ZeroImm(zeroImm),
-        UCharImm(ucharImm), AllowedOp1Regs(allowedOp1Regs),
-        AllowedOp2Regs(allowedOp2Regs), DebugName(debugName) {}
+        UCharImm(ucharImm), DebugName(debugName), AllowedOp1Regs(allowedOp1Regs),
+        AllowedOp2Regs(allowedOp2Regs) {}
 };
 
 namespace {

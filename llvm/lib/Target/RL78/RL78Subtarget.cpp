@@ -24,8 +24,8 @@ void RL78Subtarget::anchor() {}
 
 RL78Subtarget &
 RL78Subtarget::initializeSubtargetDependencies(const Triple &TT, StringRef CPU,
-                                                StringRef TuneCPU, StringRef FS,
-                                                StringRef ABIName) {
+                                               StringRef TuneCPU, StringRef FS,
+                                               StringRef ABIName) {
   coreType = RL78_S3;
   has64BitDoubles = false;
   mirrorSource = (unsigned char)RL78MirrorSource::Zero;
@@ -53,8 +53,8 @@ RL78Subtarget::initializeSubtargetDependencies(const Triple &TT, StringRef CPU,
 }
 
 RL78Subtarget::RL78Subtarget(const Triple &TT, StringRef CPU, StringRef TuneCPU,
-                StringRef FS, StringRef ABIName,
-                const TargetMachine &TM)
+                             StringRef FS, StringRef ABIName,
+                             const TargetMachine &TM)
     : RL78GenSubtargetInfo(TT, CPU, TuneCPU, FS), TargetTriple(TT),
-      InstrInfo(initializeSubtargetDependencies(TT, CPU, TuneCPU, FS, ABIName)), TLInfo(TM, *this),
-      FrameLowering(*this) {}
+      InstrInfo(initializeSubtargetDependencies(TT, CPU, TuneCPU, FS, ABIName)),
+      TLInfo(TM, *this), FrameLowering(*this) {}

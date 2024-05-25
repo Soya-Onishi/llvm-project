@@ -79,20 +79,5 @@ inline static const char *RL78CondCodeToString(RL78CC::CondCodes CC) {
   llvm_unreachable("Invalid condition code!");
 }
 
-static void RL78ReportError(bool condition, StringRef Reason,
-                            StringRef MoreDetails = "Error: ") {
-
-  if (!condition) {
-
-    SmallVector<char, 64> Buffer;
-    raw_svector_ostream OS(Buffer);
-    OS << MoreDetails << Reason << "\n";
-    StringRef MessageStr = OS.str();
-    ssize_t written = ::write(2, MessageStr.data(), MessageStr.size());
-    (void)written;
-    exit(1);
-  }
-}
-
 } // end namespace llvm
 #endif

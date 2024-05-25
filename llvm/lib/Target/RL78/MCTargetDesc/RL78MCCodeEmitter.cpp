@@ -12,6 +12,7 @@
 
 #include "RL78.h"
 #include "RL78MCExpr.h"
+#include "TargetInfo/RL78TargetInfo.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/MC/MCCodeEmitter.h"
 #include "llvm/MC/MCContext.h"
@@ -1601,6 +1602,7 @@ void RL78MCCodeEmitter::encodeInstruction(const MCInst &MI, SmallVectorImpl<char
     Bits |= getTargetOpValue(MI, 2, 1, Fixups, STI,
                                (MCFixupKind)RL78::fixup_RL78_DIR8U) &
               0xFF;
+    break;
   case RL78::XOR_r_imm:
     Bits |= getTargetOpValue(MI, 2, 1, Fixups, STI,
                                (MCFixupKind)RL78::fixup_RL78_DIR8U) &

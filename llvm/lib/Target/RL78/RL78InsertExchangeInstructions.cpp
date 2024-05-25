@@ -752,8 +752,6 @@ bool RL78InsertExchangeInstructionsPass::runOnMachineFunction(
   for (MachineBasicBlock &MBB : MF) {
     if (MBB.empty())
       continue;
-    // True if BC = SP.
-    bool BCHasSP = false;
 
     for (MachineBasicBlock::iterator Next = MBB.begin(), E = MBB.end();
          Next != E;) {
@@ -762,11 +760,6 @@ bool RL78InsertExchangeInstructionsPass::runOnMachineFunction(
       // if this wasn't the last instruction in BB
       if (Next != MBB.end()) {
         MachineInstr &MI2 = *Next;
-        //
-        if (MI2.getNumOperands() >= 1 && MI2.getOperand(0).isReg() &&
-            MI2.getOperand(0).isDef() &&
-            (MI2.getOperand(0).getReg() == RL78::RP2))
-          BCHasSP = (MI2.getOpcode() == RL78::MOVW_rp_sp);
         // if the 2 opcodes are equal, XCH/XCHW instructions using the same
         // registers(first one is A anyways)
         if ((MI1.getOpcode() == MI2.getOpcode()) &&

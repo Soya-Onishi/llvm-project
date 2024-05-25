@@ -12,6 +12,7 @@
 
 #include "RL78InstPrinter.h"
 #include "RL78TargetMachine.h"
+#include "TargetInfo/RL78TargetInfo.h"
 
 using namespace llvm;
 

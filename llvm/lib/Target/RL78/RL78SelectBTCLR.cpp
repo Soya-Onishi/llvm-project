@@ -43,17 +43,16 @@ FunctionPass *llvm::createRL78SelectBTCLRPass() {
 bool RL78SelectBTCLRPass::runOnMachineFunction(MachineFunction &MF) {
   bool Changed = false;
   const TargetInstrInfo *TII = MF.getSubtarget<RL78Subtarget>().getInstrInfo();
-  //
+  
   for (MachineBasicBlock &MBB : MF) {
     if (MBB.empty())
       continue;
-    //
+    
     MachineBasicBlock::iterator I = MBB.getLastNonDebugInstr();
     if (I == MBB.end())
       continue;
-    //
+
     MachineInstr &MI = *I;
-    MachineFunction::iterator MBBI = MBB.getIterator();
     // if BT.
     if (((MI.getOpcode() == RL78::BTBF_A) ||
          (MI.getOpcode() == RL78::BTBF_memr)) &&

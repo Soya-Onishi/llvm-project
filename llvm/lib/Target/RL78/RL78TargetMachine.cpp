@@ -385,3 +385,13 @@ bool RL78AdjustMemRefsPass::runOnMachineFunction(MachineFunction &MF) {
 
   return Changed;
 }
+
+unsigned int llvm::tryGetRP6(MachineBasicBlock *BB) {
+  const TargetRegisterInfo *TRI = BB->getParent()->getSubtarget().getRegisterInfo();
+  return TRI->getReservedRegs(*BB->getParent()).test(RL78::RP6) ? RL78::RP4
+                                                             : RL78::RP6;
+}
+
+bool llvm::isFPUsed(MachineBasicBlock *BB) {
+    return tryGetRP6(BB) != RL78::RP6;
+}

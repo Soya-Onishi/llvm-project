@@ -19,8 +19,6 @@ namespace llvm {
 
 class RL78TargetMachine : public LLVMTargetMachine {
   std::unique_ptr<TargetLoweringObjectFile> TLOF;
-  //RL78Subtarget Subtarget;
-  bool is64Bit;
   mutable StringMap<std::unique_ptr<RL78Subtarget>> SubtargetMap;
 
 public:
@@ -69,15 +67,8 @@ public:
 
 };
 
-static unsigned int tryGetRP6(MachineBasicBlock *BB) {
-  const TargetRegisterInfo *TRI = BB->getParent()->getSubtarget().getRegisterInfo();
-  return TRI->getReservedRegs(*BB->getParent()).test(RL78::RP6) ? RL78::RP4
-                                                             : RL78::RP6;
-}
-
-static bool isFPUsed(MachineBasicBlock *BB) {
-    return tryGetRP6(BB) != RL78::RP6;
-}
+unsigned int tryGetRP6(MachineBasicBlock *BB);
+bool isFPUsed(MachineBasicBlock *BB);
 
 } // end namespace llvm
 

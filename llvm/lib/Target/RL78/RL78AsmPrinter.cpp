@@ -63,30 +63,6 @@ private:
 };
 } // end of anonymous namespace
 
-static MCOperand createRL78MCOperand(RL78MCExpr::VariantKind Kind,
-                                     MCSymbol *Sym, MCContext &OutContext) {
-  const MCSymbolRefExpr *MCSym = MCSymbolRefExpr::create(Sym, OutContext);
-  const RL78MCExpr *expr = RL78MCExpr::create(Kind, MCSym, OutContext);
-  return MCOperand::createExpr(expr);
-}
-static MCOperand createPCXCallOP(MCSymbol *Label, MCContext &OutContext) {
-  return createRL78MCOperand(RL78MCExpr::VK_RL78_None, Label, OutContext);
-}
-
-static MCOperand createPCXRelExprOp(RL78MCExpr::VariantKind Kind,
-                                    MCSymbol *GOTLabel, MCSymbol *StartLabel,
-                                    MCSymbol *CurLabel, MCContext &OutContext) {
-  const MCSymbolRefExpr *GOT = MCSymbolRefExpr::create(GOTLabel, OutContext);
-  const MCSymbolRefExpr *Start =
-      MCSymbolRefExpr::create(StartLabel, OutContext);
-  const MCSymbolRefExpr *Cur = MCSymbolRefExpr::create(CurLabel, OutContext);
-
-  const MCBinaryExpr *Sub = MCBinaryExpr::createSub(Cur, Start, OutContext);
-  const MCBinaryExpr *Add = MCBinaryExpr::createAdd(GOT, Sub, OutContext);
-  const RL78MCExpr *expr = RL78MCExpr::create(Kind, Add, OutContext);
-  return MCOperand::createExpr(expr);
-}
-
 void RL78AsmPrinter::emitInstruction(const MachineInstr *MI) {
   switch (MI->getOpcode()) {
   default:

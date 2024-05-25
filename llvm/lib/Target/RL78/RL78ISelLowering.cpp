@@ -188,7 +188,6 @@ SDValue RL78TargetLowering::LowerFormalArguments(
         unsigned VReg =
             MF.getRegInfo().createVirtualRegister(&RL78::RL78RPRegsRegClass);
         MF.getRegInfo().addLiveIn(VA.getLocReg(), VReg);
-        SDValue HiPart = DAG.getCopyFromReg(Chain, DL, VReg, MVT::i16);
         Arg = DAG.getCopyFromReg(Chain, DL, VReg, MVT::i16);
       } else {
         llvm_unreachable("Not implemented!");
@@ -1295,26 +1294,6 @@ static unsigned IntCondCCodeSign(ISD::CondCode CC) {
   case ISD::SETLE:
   case ISD::SETGE:
     return 1;
-  }
-}
-
-// Condition result if LHS == RHS.
-static bool CondResultLHSeqRHS(ISD::CondCode CC) {
-  switch (CC) {
-  default:
-    llvm_unreachable("Unknown integer condition code!");
-  case ISD::SETEQ:
-  case ISD::SETULE:
-  case ISD::SETUGE:
-  case ISD::SETLE:
-  case ISD::SETGE:
-    return true;
-  case ISD::SETNE:
-  case ISD::SETULT:
-  case ISD::SETUGT:
-  case ISD::SETLT:
-  case ISD::SETGT:
-    return false;
   }
 }
 
@@ -2812,15 +2791,6 @@ SDValue RL78TargetLowering::LowerSETCC(SDValue Op, SelectionDAG &DAG) const {
   llvm_unreachable("Should not custom lower this SETCC!");
 }
 
-static SDValue LowerLOW16(SDValue Op, SelectionDAG &DAG) {
-  // Op.dump();
-  // Op.getOperand(0).dump();
-  // VK_RL78_LOW16
-
-  // SDValue Result = DAG.getTargetGlobalAddress(GV, SDLoc(Op), VT, Offset);
-  return Op;
-}
-
 SDValue RL78TargetLowering::PerformBRCONDCombine(SDNode *N, DAGCombinerInfo &DCI) const {
   // TODO: revisit this in GCC-1920
   if (N->getOpcode() == ISD::BRCOND &&
@@ -3612,12 +3582,6 @@ MachineBasicBlock *RL78TargetLowering::LowerAndOrXor16_rp_abs16(
   return BB;
 }
 
-static bool IsMemr(MachineInstr &MI) {
-  return MI.getOpcode() == RL78::CMPW_rp_memri ||
-         MI.getOpcode() == RL78::CMP_r_memri ||
-         MI.getOpcode() == RL78::CMP_r_memrr;
-}
-
 MachineBasicBlock *
 RL78TargetLowering::LowerSignedCMP0(bool cmpw, MachineInstr &MI,
                                     MachineBasicBlock *BB) const {
@@ -4112,18 +4076,6 @@ MachineBasicBlock *RL78TargetLowering::LowerAndOrXor16_rp_imm(
   return BB;
 }
 
-static bool isCCRegDead(MachineInstr &MI) {
-  //
-  for (unsigned i = MI.getNumExplicitOperands(), e = MI.getNumOperands();
-       i != e; ++i) {
-    if (MI.getOperand(i).isReg() &&
-        (MI.getOperand(i).getReg() == RL78::CCreg) && MI.getOperand(i).isDef())
-      return MI.getOperand(i).isDead();
-  }
-  //
-  return false;
-}
-
 static bool IsCarryDead(MachineInstr &MI) {
   for (unsigned i = 0; i < MI.getNumOperands(); i++)
     if (MI.getOperand(i).isReg() && MI.getOperand(i).getReg() == RL78::CCreg &&
@@ -4515,7 +4467,6 @@ MachineBasicBlock *RL78TargetLowering::LowerMUL16(MachineInstr &MI,
     // If we get here we should not be optimizing for size, so bundles should be
     // ok.
     unsigned Rs1 = MI.getOperand(1).getReg();
-    unsigned Rs2 = MI.getOperand(2).getReg();
     unsigned Rd = MI.getOperand(0).getReg();
     BuildMI(*BB, MI, DL, TII->get(RL78::COPY), RL78::RP0).addReg(Rs1);
     BuildMI(*BB, std::next(MachineBasicBlock::iterator(MI)), DL,
