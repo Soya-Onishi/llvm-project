@@ -1963,8 +1963,6 @@ bool RL78AsmParser::HasTargetSubExpressionKind(const MCExpr *Expr,
     const RL78MCExpr *TExpr = cast<RL78MCExpr>(Expr);
     return TExpr->getVariantKind() == TargetExpressionKind;
   }
-  default:
-    return false;
   }
 }
 
@@ -2341,7 +2339,7 @@ bool RL78AsmParser::ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
   // Read the remaining operands.
   if (getLexer().isNot(AsmToken::EndOfStatement)) {
     // Read the first operand.
-    if (parseOperand(Operands, Name).isSuccess()) {
+    if (!parseOperand(Operands, Name).isSuccess()) {
       SMLoc Loc = getLexer().getLoc();
       Parser.eatToEndOfStatement();
       return Error(Loc, "unexpected token in argument list");
@@ -2351,7 +2349,7 @@ bool RL78AsmParser::ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
       Parser.Lex(); // Eat the comma.
 
       // Parse and remember the operand.
-      if (parseOperand(Operands, Name).isSuccess()) {
+      if (!parseOperand(Operands, Name).isSuccess()) {
         SMLoc Loc = getLexer().getLoc();
         Parser.eatToEndOfStatement();
         return Error(Loc, "unexpected token in argument list");
