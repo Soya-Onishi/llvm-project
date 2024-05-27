@@ -145,7 +145,7 @@ static void insert16BitExchange(MachineInstr &MI, unsigned opIndex,
           Reg != RL78::MACRH && Reg != RL78::MACRL) {
         BuildMI(MBB, MI, DL, TII->get(RL78::XCHW_AX_rp), RL78::RP0)
             .addReg(Reg, RegState::Define)
-            .addReg(RL78::RP0, RegState::Kill)
+            .addReg(RL78::RP0, isAXLive ? RegState::Kill : RegState::Undef)
             .addReg(Reg, RegState::Kill);
         BuildMI(MBB, std::next(MI.getIterator()), DL,
                 TII->get(RL78::XCHW_AX_rp), RL78::RP0)
@@ -569,7 +569,7 @@ bool RL78InsertExchangeInstructionsPass::runOnMachineFunction(
         insert16BitExchange(MI, 2, DL, MBB, TII, isALive || isXLive);
         break;
       case RL78::STORE8_stack_slot_r:
-        insert8BitExchange(MI, 2, DL, MBB, TII, isALive);
+        insert8BitExchange(MI, 2, DL, MBB, TII, isALive, /*isDefOp0=*/false);
         break;
       // TODO remove all COPY
       // TODO: won't be better to just a custom inserter and remove the copies
