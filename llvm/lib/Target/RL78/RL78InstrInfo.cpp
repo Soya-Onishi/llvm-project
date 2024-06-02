@@ -113,14 +113,14 @@ void RL78InstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
   // MBB.dump();
 }
 
-static void BuildUnrolledShiftStep(const RL78InstrInfo *II,
-                            llvm::MachineBasicBlock *BB, llvm::MachineInstr &MI,
-                            llvm::DebugLoc &DL, unsigned int opcode,
-                            const llvm::Register &Rd,
-                            unsigned CounterShiftAmount, unsigned RdOpAmount,
-                            unsigned OpSize, unsigned OpInstrCount,
-                            MachineInstrBuilder &FirstInstruction,
-                            MachineInstrBuilder &LastInstruction) {
+static void
+BuildUnrolledShiftStep(const RL78InstrInfo *II, llvm::MachineBasicBlock *BB,
+                       llvm::MachineInstr &MI, llvm::DebugLoc &DL,
+                       unsigned int opcode, const llvm::Register &Rd,
+                       unsigned CounterShiftAmount, unsigned RdOpAmount,
+                       unsigned OpSize, unsigned OpInstrCount,
+                       MachineInstrBuilder &FirstInstruction,
+                       MachineInstrBuilder &LastInstruction) {
 
   unsigned JumpSize = OpSize * RdOpAmount;
   if (RdOpAmount == 1) {
@@ -235,7 +235,7 @@ static bool Build_MUL16_rp_rp_S2(const RL78InstrInfo *II,
   //  movw  ax, MDBL
   //  pop  psw ;
   //  MDUC -> F00E8, MDAL -> FFFF0, MDAH -> FFFF2, MDBL -> FFFF6
-    MachineInstrBuilder FirstInstruction, LastInstruction;
+  MachineInstrBuilder FirstInstruction, LastInstruction;
 
   // PSW register contents are saved to the stack.
   FirstInstruction = BuildMI(*BB, MI, DL, II->get(RL78::PUSH_cc));
@@ -342,11 +342,13 @@ bool RL78InstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
     OpSize = 2;
     break;
   case RL78::ADDE_rp_rp:
-      return BuildADDE_SUBBE_rp_rp(this, BB, MI, DL, RL78::INCW_rp, RL78::ADDW_rp_rp);
+    return BuildADDE_SUBBE_rp_rp(this, BB, MI, DL, RL78::INCW_rp,
+                                 RL78::ADDW_rp_rp);
   case RL78::SUBE_rp_rp:
-      return BuildADDE_SUBBE_rp_rp(this, BB, MI, DL, RL78::DECW_rp, RL78::SUBW_rp_rp);
+    return BuildADDE_SUBBE_rp_rp(this, BB, MI, DL, RL78::DECW_rp,
+                                 RL78::SUBW_rp_rp);
   case RL78::MUL16_rp_rp_S1_S2:
-      return Build_MUL16_rp_rp_S2(this, BB, MI, DL);
+    return Build_MUL16_rp_rp_S2(this, BB, MI, DL);
   default:
     return false;
     break;
@@ -407,8 +409,8 @@ static RL78CC::CondCodes GetOppositeBranchCondition(RL78CC::CondCodes CC) {
 static bool isUncondBranchOpcode(int Opc) { return Opc == RL78::BR; }
 
 static bool isCondBranchOpcode(int Opc) {
-  return (Opc == RL78::BRCC) || (Opc == RL78::BTBF) || (Opc == RL78::BTBF_mem)
-      || (Opc == RL78::BTBF_sfr);
+  return (Opc == RL78::BRCC) || (Opc == RL78::BTBF) ||
+         (Opc == RL78::BTBF_mem) || (Opc == RL78::BTBF_sfr);
 }
 
 static bool isIndirectBranchOpcode(int Opc) { return Opc == RL78::BR_AX; }
@@ -581,12 +583,52 @@ bool RL78InstrInfo::reverseBranchCondition(
   return false;
 }
 
+static void computeRegAliveness(MachineBasicBlock &MBB,
+                                MachineBasicBlock::iterator I, bool &isALive,
+                                bool &isAXLive) {
+  isALive = MBB.isLiveIn(RL78::R1) || MBB.isLiveIn(RL78::RP0);
+  isAXLive = MBB.isLiveIn(RL78::RP0);
+
+  for (auto It = MBB.begin(); It != I; It++) {
+    for(unsigned i = 0; i < It->getNumOperands(); i++) {
+      auto Op = It->getOperand(i);
+      if(Op.isReg() && Op.isKill()) {
+        if(Op.getReg() == RL78::R1) {
+          isALive = false;
+        }
+        if(Op.getReg() == RL78::RP0) {
+          isAXLive = false;
+          isALive = false;
+        }
+      }
+    }
+
+    for(unsigned i = 0; i < It->getNumOperands(); i++) {
+      auto Op = It->getOperand(i);
+      if(Op.isReg() && Op.isDef()) {
+        if(Op.getReg() == RL78::R1) {
+          isALive = true;
+        }
+        if(Op.getReg() == RL78::RP0) {
+          isAXLive = true;
+          isALive = true;
+        }
+      }
+    }
+  }
+}
+
 void RL78InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                 MachineBasicBlock::iterator I,
                                 const DebugLoc &DL, MCRegister DestReg,
                                 MCRegister SrcReg, bool KillSrc) const {
 #define MACRHigh 0xFFF2
 #define MACRLow 0xFFF0
+
+  bool isALive;
+  bool isAXLive;
+  computeRegAliveness(MBB, I, isALive, isAXLive);
+
   // 8 bit copy:
   if (RL78::RL78RegRegClass.contains(DestReg, SrcReg)) {
     // mov A, <...>
@@ -614,8 +656,11 @@ void RL78InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
       // pop AX -> 1 byte and clocks 1
       if (MBB.getParent()->getFunction().hasMinSize() &&
           (DestReg != RL78::R0)) {
-        BuildMI(MBB, I, DL, get(RL78::PUSH_rp))
+        if(isAXLive || isALive) {
+          BuildMI(MBB, I, DL, get(RL78::PUSH_rp))
             .addReg(RL78::RP0, RegState::Kill);
+        }
+
         // mov A, r
         BuildMI(MBB, I, DL, get(RL78::MOV_A_r), RL78::R1)
             .addReg(SrcReg, getKillRegState(KillSrc));
@@ -623,12 +668,14 @@ void RL78InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
         BuildMI(MBB, I, DL, get(RL78::MOV_r_A), DestReg)
             .addReg(RL78::R1, RegState::Kill);
         //
-        BuildMI(MBB, I, DL, get(RL78::POP_rp), RL78::RP0);
+        if(isAXLive || isALive) {
+          BuildMI(MBB, I, DL, get(RL78::POP_rp), RL78::RP0);
+        }
       } else {
         BuildMI(MBB, I, DL, get(RL78::XCH_A_r), RL78::R1)
             .addReg(DestReg, RegState::Define)
-            .addReg(RL78::R1, RegState::Kill | RegState::Undef)
-            .addReg(DestReg, RegState::Kill | RegState::Undef);
+            .addReg(RL78::R1, isALive ? RegState::Kill : RegState::Undef)
+            .addReg(DestReg, RegState::Undef);
         // mov A, r
         BuildMI(MBB, I, DL, get(RL78::MOV_A_r), RL78::R1)
             .addReg(SrcReg, getKillRegState(KillSrc));
@@ -698,12 +745,12 @@ void RL78InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
     else {
       BuildMI(MBB, I, DL, get(RL78::XCHW_AX_rp), RL78::RP0)
           .addReg(SrcReg, RegState::Define)
-          .addReg(RL78::RP0, RegState::Kill)
+          .addReg(RL78::RP0, isAXLive ? RegState::Kill : RegState::Undef)
           .addReg(SrcReg, RegState::Kill);
       BuildMI(MBB, I, DL, get(RL78::MOVW_sp_rp), DestReg).addReg(RL78::RP0);
       BuildMI(MBB, I, DL, get(RL78::XCHW_AX_rp), RL78::RP0)
           .addReg(SrcReg, RegState::Define)
-          .addReg(RL78::RP0, RegState::Kill)
+          .addReg(RL78::RP0, isAXLive ? RegState::Kill : RegState::Undef)
           .addReg(SrcReg, RegState::Kill);
     }
   } else if (RL78::RL78Bank0RegRegClass.contains(DestReg) &&
@@ -723,59 +770,56 @@ void RL78InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
   else if (RL78::CS == DestReg && RL78::RL78Bank0RegRegClass.contains(SrcReg)) {
     if (RL78::R1 == SrcReg) {
       BuildMI(MBB, I, DL, get(RL78::MOV_cs_A), RL78::CS)
-          .addReg(RL78::R1, RegState::Kill);
+          .addReg(RL78::R1, isALive ? RegState::Kill : RegState::Undef);
     } else {
       BuildMI(MBB, I, DL, get(RL78::XCH_A_r), RL78::R1)
           .addReg(SrcReg, RegState::Define)
-          .addReg(RL78::R1, RegState::Kill)
+          .addReg(RL78::R1, isALive ? RegState::Kill : RegState::Undef)
           .addReg(SrcReg, RegState::Kill);
       BuildMI(MBB, I, DL, get(RL78::MOV_cs_A), RL78::CS)
-          .addReg(RL78::R1, RegState::Kill);
+          .addReg(RL78::R1, isALive ? RegState::Kill : RegState::Undef);
       BuildMI(MBB, I, DL, get(RL78::XCH_A_r), RL78::R1)
           .addReg(SrcReg, RegState::Define)
-          .addReg(RL78::R1, RegState::Kill)
+          .addReg(RL78::R1, isALive ? RegState::Kill : RegState::Undef)
           .addReg(SrcReg, RegState::Kill);
     }
-  } 
-  else if (SrcReg == RL78::MACRH || SrcReg == RL78::MACRL) {
+  } else if (SrcReg == RL78::MACRH || SrcReg == RL78::MACRL) {
     unsigned SrcAddr = SrcReg == RL78::MACRH ? MACRHigh : MACRLow;
     if (DestReg == RL78::RP0)
-        BuildMI(MBB, I, DL, get(RL78::LOAD16_rp_abs16), RL78::RP0)
-            .addImm(SrcAddr);
+      BuildMI(MBB, I, DL, get(RL78::LOAD16_rp_abs16), RL78::RP0)
+          .addImm(SrcAddr);
     else {
       BuildMI(MBB, I, DL, get(RL78::XCHW_AX_rp), RL78::RP0)
           .addReg(DestReg, RegState::Define)
-          .addReg(RL78::RP0, RegState::Kill)
+          .addReg(RL78::RP0, isAXLive ? RegState::Kill : RegState::Undef)
           .addReg(DestReg, RegState::Kill);
       BuildMI(MBB, I, DL, get(RL78::LOAD16_rp_abs16), RL78::RP0)
-            .addImm(SrcAddr);
+          .addImm(SrcAddr);
       BuildMI(MBB, I, DL, get(RL78::XCHW_AX_rp), RL78::RP0)
           .addReg(DestReg, RegState::Define)
-          .addReg(RL78::RP0, RegState::Kill)
+          .addReg(RL78::RP0, isAXLive ? RegState::Kill : RegState::Undef)
           .addReg(DestReg, RegState::Kill);
     }
-  } 
-  else if (DestReg == RL78::MACRH || DestReg == RL78::MACRL) {
-      unsigned DestAddr = DestReg == RL78::MACRH ? MACRHigh : MACRLow;
+  } else if (DestReg == RL78::MACRH || DestReg == RL78::MACRL) {
+    unsigned DestAddr = DestReg == RL78::MACRH ? MACRHigh : MACRLow;
     if (SrcReg == RL78::RP0)
-        BuildMI(MBB, I, DL, get(RL78::STORE16_abs16_rp))
-            .addImm(DestAddr)
-            .addReg(RL78::RP0, getKillRegState(KillSrc));
+      BuildMI(MBB, I, DL, get(RL78::STORE16_abs16_rp))
+          .addImm(DestAddr)
+          .addReg(RL78::RP0, getKillRegState(KillSrc));
     else {
       BuildMI(MBB, I, DL, get(RL78::XCHW_AX_rp), RL78::RP0)
           .addReg(SrcReg, RegState::Define)
-          .addReg(RL78::RP0, RegState::Kill)
+          .addReg(RL78::RP0, isAXLive ? RegState::Kill : RegState::Undef)
           .addReg(SrcReg, RegState::Kill);
       BuildMI(MBB, I, DL, get(RL78::STORE16_abs16_rp))
-            .addImm(DestAddr)
-            .addReg(RL78::RP0);
+          .addImm(DestAddr)
+          .addReg(RL78::RP0);
       BuildMI(MBB, I, DL, get(RL78::XCHW_AX_rp), RL78::RP0)
           .addReg(SrcReg, RegState::Define)
-          .addReg(RL78::RP0, RegState::Kill)
+          .addReg(RL78::RP0, isAXLive ? RegState::Kill : RegState::Undef)
           .addReg(SrcReg, RegState::Kill);
     }
-  }  
-  else
+  } else
     llvm_unreachable("Unknown copy!");
   // MovMI->addRegisterDefined(DestReg, TRI);
 }
@@ -843,17 +887,17 @@ enum MachineOutlinerClass { MachineOutlinerDefault, MachineOutlinerTailCall };
 
 /// Returns a \p outliner::OutlinedFunction struct containing target-specific
 /// information for a set of outlining candidates.
-std::optional<outliner::OutlinedFunction> RL78InstrInfo::getOutliningCandidateInfo(
+std::optional<outliner::OutlinedFunction>
+RL78InstrInfo::getOutliningCandidateInfo(
     std::vector<outliner::Candidate> &RepeatedSequenceLocs) const {
-  
+
   // TODO: are there cases where we don't want to outline?
 
-  unsigned SequenceSize =
-      std::accumulate(RepeatedSequenceLocs[0].begin(),
-                      RepeatedSequenceLocs[0].end(), 0,
-                      [this](unsigned Sum, const MachineInstr &MI) {
-                        return Sum + getInstSizeInBytes(MI);
-                      });
+  unsigned SequenceSize = std::accumulate(
+      RepeatedSequenceLocs[0].begin(), RepeatedSequenceLocs[0].end(), 0,
+      [this](unsigned Sum, const MachineInstr &MI) {
+        return Sum + getInstSizeInBytes(MI);
+      });
 
   if (RepeatedSequenceLocs[0].back().isTerminator()) {
     unsigned CO = Subtarget.HasFarCodeModel() ? get(RL78::BR_addr20).getSize()
@@ -878,19 +922,19 @@ std::optional<outliner::OutlinedFunction> RL78InstrInfo::getOutliningCandidateIn
 /// Returns how or if \p MI should be outlined.
 outliner::InstrType
 RL78InstrInfo::getOutliningTypeImpl(MachineBasicBlock::iterator &MIT,
-                                unsigned Flags) const {
+                                    unsigned Flags) const {
   MachineInstr &MI = *MIT;
   // Don't allow debug values to impact outlining type.
   if (MI.isDebugInstr() || MI.isIndirectDebugValue())
     return outliner::InstrType::Invisible;
 
-  // For now, disable outlining bundled instructions, since the outliner does not copy them 
-  // as we expect.
+  // For now, disable outlining bundled instructions, since the outliner does
+  // not copy them as we expect.
   // TODO: investigate why is this happening?
   // One possible reason is the usage of the simple iterator instead of the
   // instr_iterator when creating the outlined function instructions.
-  if(MI.isInsideBundle() || MI.getOpcode() == TargetOpcode::BUNDLE)
-      return outliner::InstrType::Illegal;
+  if (MI.isInsideBundle() || MI.getOpcode() == TargetOpcode::BUNDLE)
+    return outliner::InstrType::Illegal;
 
   // At this point, KILL instructions don't really tell us much so we can go
   // ahead and skip over them.
@@ -998,10 +1042,10 @@ MachineInstr *RL78InstrInfo::foldMemoryOperandImpl(
       (MI.getOpcode() != RL78::CLRB_r))
     return nullptr;
 
-  //In cases like: undef %39.sub_hi:rl78rpregs = MOV_r_imm 0
-  //we need to do a +1 to get the correst stack address.
+  // In cases like: undef %39.sub_hi:rl78rpregs = MOV_r_imm 0
+  // we need to do a +1 to get the correst stack address.
   assert(MI.getOperand(0).isReg());
-  unsigned subReg = (MI.getOperand(0).getSubReg() == RL78::sub_hi)? 1 : 0;
+  unsigned subReg = (MI.getOperand(0).getSubReg() == RL78::sub_hi) ? 1 : 0;
 
   int64_t Imm;
   switch (MI.getOpcode()) {

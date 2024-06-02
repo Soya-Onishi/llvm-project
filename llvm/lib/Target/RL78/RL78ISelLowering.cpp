@@ -4132,6 +4132,40 @@ RL78TargetLowering::LowerADDE_SUBE_rp_rp(unsigned int opcode, MachineInstr &MI,
   }
 }
 
+static bool isKillable(const MachineInstr &MI, Register Reg) {
+  const MachineBasicBlock *MBB = MI.getParent();
+  const MachineFunction *MF = MBB->getParent();
+
+  // Consume until argument instruction
+  MachineBasicBlock::const_iterator I = MBB->begin();
+  for(; I != MI && I != MBB->end(); I++);
+
+  // Search usage of Reg in same BB
+  for(; I != MBB->end(); I++) {
+    for(unsigned Idx = 0; Idx < I->getNumOperands(); Idx++) {
+      const auto Op = I->getOperand(Idx);
+      if(Op.isDef()) {
+        continue;
+      }
+      if(!Op.isReg()) {
+        continue;
+      }
+
+      if(Op.getReg() == Reg) {
+        return false;
+      } 
+    }
+  }
+  
+  for(auto BB = MF->begin(); BB != MF->end(); BB++) {
+    if(BB->isLiveIn(Reg)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 MachineBasicBlock *
 RL78TargetLowering::LowerADDE_SUBE_rp_imm(unsigned int opcode, MachineInstr &MI,
                                           MachineBasicBlock *BB) const {
@@ -4139,11 +4173,11 @@ RL78TargetLowering::LowerADDE_SUBE_rp_imm(unsigned int opcode, MachineInstr &MI,
   MachineFunction *MF = BB->getParent();
   const TargetInstrInfo *TII = MF->getSubtarget<RL78Subtarget>().getInstrInfo();
 
-  unsigned Rs1 = MI.getOperand(1).getReg();
+  Register Rs1 = MI.getOperand(1).getReg();
   unsigned Imm = MI.getOperand(2).getImm() & 0xFFFF;
   unsigned ImmLo = MI.getOperand(2).getImm() & 0xFF;
   unsigned ImmHi = ((unsigned)MI.getOperand(2).getImm() >> 8) & 0xFF;
-  unsigned Rd = MI.getOperand(0).getReg();
+  Register Rd = MI.getOperand(0).getReg();
 
   if (Imm == 0 || Imm == 0xFFFF) {
     // If the constant is 0 we need to consider only the carry.
@@ -4195,7 +4229,7 @@ RL78TargetLowering::LowerADDE_SUBE_rp_imm(unsigned int opcode, MachineInstr &MI,
   }
 
   BuildMI(*BB, MI, DL, TII->get(RL78::COPY), RL78::RP0)
-      .addReg(Rs1, RegState::Kill);
+      .addReg(Rs1/*, getKillRegState(isKillable(MI, Rs1))*/);
   BuildMI(*BB, MI, DL, TII->get(RL78::XCH_A_r), RL78::R1)
       .addReg(RL78::R0, RegState::Define)
       .addReg(RL78::R1, RegState::Kill)

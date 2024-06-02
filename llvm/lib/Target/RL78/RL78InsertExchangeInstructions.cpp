@@ -78,8 +78,8 @@ static void insert8BitExchange(MachineInstr &MI, unsigned opIndex, DebugLoc &DL,
       // xch A, Rx
       BuildMI(MBB, MI, DL, TII->get(RL78::XCH_A_r), RL78::R1)
           .addReg(MI.getOperand(opIndex).getReg(), RegState::Define)
-          .addReg(RL78::R1, RegState::Kill)
-          .addReg(MI.getOperand(opIndex).getReg(), RegState::Kill | RegState::Undef);
+          .addReg(RL78::R1, isALive ? RegState::Kill : RegState::Undef)
+          .addReg(MI.getOperand(opIndex).getReg(), RegState::Undef);
       BuildMI(MBB, std::next(MI.getIterator()), DL, TII->get(RL78::XCH_A_r),
               RL78::R1)
           .addReg(MI.getOperand(opIndex).getReg(), RegState::Define)
@@ -146,7 +146,7 @@ static void insert16BitExchange(MachineInstr &MI, unsigned opIndex,
         BuildMI(MBB, MI, DL, TII->get(RL78::XCHW_AX_rp), RL78::RP0)
             .addReg(Reg, RegState::Define)
             .addReg(RL78::RP0, isAXLive ? RegState::Kill : RegState::Undef)
-            .addReg(Reg, RegState::Kill);
+            .addReg(Reg, RegState::Undef);
         BuildMI(MBB, std::next(MI.getIterator()), DL,
                 TII->get(RL78::XCHW_AX_rp), RL78::RP0)
             .addReg(Reg, RegState::Define)

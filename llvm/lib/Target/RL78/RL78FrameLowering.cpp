@@ -203,7 +203,7 @@ void RL78FrameLowering::emitPrologue(MachineFunction &MF,
       BuildMI(MBB, MBBI, dl, TII.get(RL78::XCHW_AX_rp), RL78::RP0)
           .addReg(RL78::RP6, RegState::Define)
           .addReg(RL78::RP0, RegState::Kill)
-          .addReg(RL78::RP6, RegState::Kill);
+          .addReg(RL78::RP6, RegState::Undef);
       BuildMI(MBB, MBBI, dl, TII.get(RL78::MOVW_rp_sp), RL78::RP0)
           .addReg(RL78::SPreg);
       BuildMI(MBB, MBBI, dl, TII.get(RL78::SUBW_rp_imm), RL78::RP0)
@@ -362,7 +362,7 @@ void RL78FrameLowering::emitEpilogue(MachineFunction &MF,
     BuildMI(MBB, MBBI, dl, TII.get(RL78::XCHW_AX_rp), RL78::RP0)
         .addReg(RL78::RP6, RegState::Define)
         .addReg(RL78::RP0, RegState::Kill)
-        .addReg(RL78::RP6, RegState::Kill);
+        .addReg(RL78::RP6, RegState::Undef);
     // Dwarf regnum of AX is 0.
     unsigned CFIIndex =
         MF.addFrameInst(MCCFIInstruction::createDefCfaRegister(nullptr, 0));
@@ -441,7 +441,7 @@ void RL78FrameLowering::emitEpilogue(MachineFunction &MF,
     BuildMI(MBB, MBBI, dl, TII.get(RL78::XCHW_AX_rp), RL78::RP0)
         .addReg(RL78::RP6, RegState::Define)
         .addReg(RL78::RP0, RegState::Kill)
-        .addReg(RL78::RP6, RegState::Kill);
+        .addReg(RL78::RP6, RegState::Undef);
 
     if (isUInt<8>(NumBytesAdjusted - 2))
       BuildMI(MBB, MBBI, dl, TII.get(RL78::LOAD16_rp_stack_slot), RL78::RP0)
@@ -490,7 +490,7 @@ void RL78FrameLowering::emitEpilogue(MachineFunction &MF,
       BuildMI(MBB, MBBI, dl, TII.get(RL78::XCHW_AX_rp), RL78::RP0)
           .addReg(RL78::RP6, RegState::Define)
           .addReg(RL78::RP0, RegState::Kill)
-          .addReg(RL78::RP6, RegState::Kill);
+          .addReg(RL78::RP6, RegState::Undef);
       BuildMI(MBB, MBBI, dl, TII.get(RL78::MOVW_rp_sp), RL78::RP0)
           .addReg(RL78::SPreg);
       BuildMI(MBB, MBBI, dl, TII.get(RL78::ADDW_rp_imm), RL78::RP0)
