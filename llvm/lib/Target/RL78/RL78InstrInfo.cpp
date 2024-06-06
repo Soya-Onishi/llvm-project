@@ -672,18 +672,27 @@ void RL78InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
           BuildMI(MBB, I, DL, get(RL78::POP_rp), RL78::RP0);
         }
       } else {
-        BuildMI(MBB, I, DL, get(RL78::XCH_A_r), RL78::R1)
-            .addReg(DestReg, RegState::Define)
-            .addReg(RL78::R1, isALive ? RegState::Kill : RegState::Undef)
-            .addReg(DestReg, RegState::Undef);
-        // mov A, r
-        BuildMI(MBB, I, DL, get(RL78::MOV_A_r), RL78::R1)
-            .addReg(SrcReg, getKillRegState(KillSrc));
-        //
-        BuildMI(MBB, I, DL, get(RL78::XCH_A_r), RL78::R1)
-            .addReg(DestReg, RegState::Define)
-            .addReg(RL78::R1, RegState::Kill)
-            .addReg(DestReg, RegState::Kill);
+        if(isALive || isAXLive) {
+          BuildMI(MBB, I, DL, get(RL78::XCH_A_r), RL78::R1)
+              .addReg(DestReg, RegState::Define)
+              .addReg(RL78::R1, isALive ? RegState::Kill : RegState::Undef)
+              .addReg(DestReg, RegState::Undef);
+          // mov A, r
+          BuildMI(MBB, I, DL, get(RL78::MOV_A_r), RL78::R1)
+              .addReg(SrcReg, getKillRegState(KillSrc));
+          //
+          BuildMI(MBB, I, DL, get(RL78::XCH_A_r), RL78::R1)
+              .addReg(DestReg, RegState::Define)
+              .addReg(RL78::R1, RegState::Kill)
+              .addReg(DestReg, RegState::Kill);
+        } else {
+          // mov A, r
+          BuildMI(MBB, I, DL, get(RL78::MOV_A_r), RL78::R1)
+              .addReg(SrcReg, getKillRegState(KillSrc));
+          // mov r, A
+          BuildMI(MBB, I, DL, get(RL78::MOV_r_A), DestReg)
+              .addReg(RL78::R1, RegState::Kill);
+        }
       }
     }
   }

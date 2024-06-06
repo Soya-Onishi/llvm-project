@@ -18,6 +18,37 @@ using namespace llvm;
 #define GET_REGINFO_TARGET_DESC
 #include "RL78GenRegisterInfo.inc"
 
+static bool isLive(MachineInstr &MI, Register Reg) {
+  const MachineBasicBlock *MBB = MI.getParent();
+
+  bool Spill = MBB->isLiveIn(Reg);
+  for(auto I = MBB->begin(); I != MI && I != MBB->end(); I++) {
+    bool hasDef = false;
+    for(unsigned i = 0; i < I->getNumOperands(); i++) {
+      const auto Op = I->getOperand(i);
+      if(!Op.isReg() || Op.getReg() != Reg) {
+        continue;
+      }
+      if(Op.isKill()) {
+        Spill = false;
+      }
+      if(Op.isDef() && !Op.isDead()) {
+        Spill = true;
+        hasDef = true;
+      }
+    }
+    if(I->isCall() && !hasDef) {
+      Spill = false;
+    }
+  }
+
+  return Spill;
+}
+
+static unsigned XCHOperandRegState(MachineInstr &MI, Register Reg) {
+  return isLive(MI, Reg) ? RegState::Kill : RegState::Undef;
+}
+
 // OBS. Return address is saved on the stack (CFA-4) however:
 // 1. we set RA = PCreg just like GCC so we don't need to make changes in GDB.
 // 2. we emit a DW_CFA_offset: r37 at cfa-4 in the CIE.
@@ -78,6 +109,7 @@ void buildWordBCAccess(MachineBasicBlock &MBB, MachineFunction &MF,
     offset += offsetAdj;
   }
 
+  saveBC &= isLive(*II, RL78::RP2);
   if (saveBC) {
     BuildMI(MBB, II, DL, TII->get(RL78::PUSH_rp))
         .addReg(RL78::RP2, RegState::Kill);
@@ -153,16 +185,24 @@ void build16bitAccess(MachineBasicBlock &MBB, MachineFunction &MF,
     // LOAD/STORE AX/A from/to Offset+2[BC].
     // POP BC.
     // XCHW AX, DE/HL.
-    BuildMI(MBB, II, DL, TII->get(RL78::XCHW_AX_rp), RL78::RP0)
+    bool ALive = isLive(*II, RL78::RP0);
+    if(ALive) {
+      BuildMI(MBB, II, DL, TII->get(RL78::XCHW_AX_rp), RL78::RP0)
         .addReg(mainRegister, RegState::Define)
         .addReg(RL78::RP0, RegState::Kill)
-        .addReg(mainRegister, RegState::Kill);
+        .addReg(mainRegister, XCHOperandRegState(*II, mainRegister));
+    } else {
+      BuildMI(MBB, II, DL, TII->get(RL78::COPY), RL78::RP0)
+        .addReg(mainRegister); 
+    }
     buildWordBCAccess(MBB, MF, TFI, II, DL, TII, isLoad, is8bit, FrameReg,
                       Offset);
-    BuildMI(MBB, II, DL, TII->get(RL78::XCHW_AX_rp), RL78::RP0)
+    if(ALive) {
+      BuildMI(MBB, II, DL, TII->get(RL78::XCHW_AX_rp), RL78::RP0)
         .addReg(mainRegister, RegState::Define)
         .addReg(RL78::RP0, RegState::Kill)
         .addReg(mainRegister, RegState::Kill);
+    }
   } else if ((mainRegister == RL78::R0) && isLoad) {
     // PUSH DE.
     // COPY E, A.

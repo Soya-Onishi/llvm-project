@@ -115,7 +115,7 @@ bool RL78ConstPropAndOpSwap::runOnMachineFunction(MachineFunction &MF) {
 
             MI1.getOperand(2).ChangeToRegister(MI.getOperand(1).getReg(), false,
                                                MI1.getOperand(2).isImplicit(),
-                                               true);
+                                               MI.getOperand(1).isKill());
 
             MI.getOperand(1).ChangeToRegister(
                 tmpRegCpy, false, MI.getOperand(1).isImplicit(), true);

@@ -4096,7 +4096,7 @@ RL78TargetLowering::LowerADDE_SUBE_rp_rp(unsigned int opcode, MachineInstr &MI,
   unsigned Rd = MI.getOperand(0).getReg();
 
   BuildMI(*BB, MI, DL, TII->get(RL78::COPY), RL78::RP0)
-      .addReg(Rs1, RegState::Kill);
+      .addReg(Rs1);
 
   if (IsCarryDead(MI) && getTargetMachine().getOptLevel() == CodeGenOptLevel::Aggressive) {
     // After changing Op0 and Op1 to RP0, delegate it to expandPostRAPseudo.
