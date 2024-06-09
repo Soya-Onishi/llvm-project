@@ -187,10 +187,11 @@ void build16bitAccess(MachineBasicBlock &MBB, MachineFunction &MF,
     // XCHW AX, DE/HL.
     bool ALive = isLive(*II, RL78::RP0);
     if(ALive) {
+      const unsigned mainRegState = XCHOperandRegState(*II, mainRegister);
       BuildMI(MBB, II, DL, TII->get(RL78::XCHW_AX_rp), RL78::RP0)
         .addReg(mainRegister, RegState::Define)
         .addReg(RL78::RP0, RegState::Kill)
-        .addReg(mainRegister, XCHOperandRegState(*II, mainRegister));
+        .addReg(mainRegister, mainRegState);
     } else {
       BuildMI(MBB, II, DL, TII->get(RL78::COPY), RL78::RP0)
         .addReg(mainRegister); 
@@ -283,6 +284,40 @@ static void loadUnalignedSP(MachineBasicBlock &MBB,
     llvm_unreachable("Invalid stack offset!");
 }
 
+static void convertIntoMemOpWithFP(MachineBasicBlock &MBB, 
+                                  MachineBasicBlock::iterator II, DebugLoc &DL, 
+                                  const TargetInstrInfo *TII, Register FrameReg,
+                                  unsigned Offset) {
+  MachineInstr &MI = *II;
+  switch(MI.getOpcode()) {
+    default:
+      llvm_unreachable("Unexpected opcode");
+      return;
+    case RL78::LOAD8_r_stack_slot:
+      BuildMI(MBB, II, DL, TII->get(RL78::LOAD8_r_ri), MI.getOperand(0).getReg())
+        .addReg(FrameReg)
+        .addImm(Offset);
+      return;
+    case RL78::LOAD16_rp_stack_slot:
+      BuildMI(MBB, II, DL, TII->get(RL78::LOAD16_rp_rpi), MI.getOperand(0).getReg())
+        .addReg(FrameReg)
+        .addImm(Offset);
+      return;
+    case RL78::STORE8_stack_slot_r:
+      BuildMI(MBB, II, DL, TII->get(RL78::STORE8_ri_r))
+        .addReg(FrameReg)
+        .addImm(Offset)
+        .addReg(MI.getOperand(2).getReg());
+      return;
+    case RL78::STORE16_stack_slot_rp:
+      BuildMI(MBB, II, DL, TII->get(RL78::STORE16_rpi_rp))
+        .addReg(FrameReg)
+        .addImm(Offset)
+        .addReg(MI.getOperand(2).getReg());
+      return;
+  }
+}
+
 /// This method must be overriden to eliminate abstract frame indices from
 /// instructions which may use them. The instruction referenced by the
 /// iterator contains an MO_FrameIndex operand which must be eliminated by
@@ -350,10 +385,14 @@ bool RL78RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
     }
 
     if (isUInt<8>(Offset + offsetAdj)) {
-      MI.getOperand(FIOperandNum).ChangeToRegister(FrameReg, false);
-      MI.getOperand(FIOperandNum + 1).ChangeToImmediate(Offset);
-      // MI.getParent()->dump();
-      return false;
+      if(FrameReg == RL78::SPreg) {
+        MI.getOperand(FIOperandNum).ChangeToRegister(FrameReg, false);
+        MI.getOperand(FIOperandNum + 1).ChangeToImmediate(Offset);
+      } else {
+        convertIntoMemOpWithFP(MBB, II, DL, TII, FrameReg, Offset);
+        MI.removeFromParent(); 
+      }
+      return true;
     }
     // FIXME: look for a different solution without using PUSH/POP
     else if (isUInt<16>(Offset - 2 + offsetAdj)) {
@@ -370,12 +409,18 @@ bool RL78RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
       // MI.getParent()->dump();
       return false;
     } else if (isUInt<16>(Offset - 2)) {
-      if (TFI->hasFP(MF)) {
+      const bool isRP0Live = isLive(*II, RL78::RP0);
+      const bool isRP2Live = isLive(*II, RL78::RP2);
+
+      if (TFI->hasFP(MF) && isRP0Live) {
         BuildMI(*MI.getParent(), II, DL, TII->get(RL78::PUSH_rp))
             .addReg(RL78::RP0, RegState::Kill);
       }
-      BuildMI(*MI.getParent(), II, DL, TII->get(RL78::PUSH_rp))
+      if(isRP2Live) {
+        BuildMI(*MI.getParent(), II, DL, TII->get(RL78::PUSH_rp))
           .addReg(RL78::RP2, RegState::Kill);
+      }
+
       if (TFI->hasFP(MF)) {
         BuildMI(*MI.getParent(), II, DL, TII->get(RL78::MOVW_AX_rp), RL78::RP0)
             .addReg(RL78::RP6);
@@ -391,8 +436,10 @@ bool RL78RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
           .addReg(RL78::RP2)
           .addImm(Offset)
           .add(MI.getOperand(2));
-      BuildMI(*MI.getParent(), II, DL, TII->get(RL78::POP_rp), RL78::RP2);
-      if (TFI->hasFP(MF))
+      if(isRP2Live) {
+        BuildMI(*MI.getParent(), II, DL, TII->get(RL78::POP_rp), RL78::RP2);
+      }
+      if (TFI->hasFP(MF) && isRP0Live)
         BuildMI(*MI.getParent(), II, DL, TII->get(RL78::POP_rp), RL78::RP0);
       // MI.getParent()->dump();
       MI.eraseFromParent();

@@ -16,6 +16,37 @@
 
 using namespace llvm;
 
+static bool isLive(MachineInstr &MI, Register Reg) {
+  const MachineBasicBlock *MBB = MI.getParent();
+
+  bool Spill = MBB->isLiveIn(Reg);
+  for(auto I = MBB->begin(); I != MI && I != MBB->end(); I++) {
+    bool hasDef = false;
+    for(unsigned i = 0; i < I->getNumOperands(); i++) {
+      const auto Op = I->getOperand(i);
+      if(!Op.isReg() || Op.getReg() != Reg) {
+        continue;
+      }
+      if(Op.isKill()) {
+        Spill = false;
+      }
+      if(Op.isDef() && !Op.isDead()) {
+        Spill = true;
+        hasDef = true;
+      }
+    }
+    if(I->isCall() && !hasDef) {
+      Spill = false;
+    }
+  }
+
+  return Spill;
+}
+
+static unsigned XCHOperandRegState(MachineInstr &MI, Register Reg) {
+  return isLive(MI, Reg) ? RegState::Kill : RegState::Undef;
+}
+
 static uint32_t getCSRegisterInfo(MachineFunction &MF) {
   uint32_t mask = ~0U;
   unsigned int sizeof_mask = CHAR_BIT * sizeof(mask);
@@ -200,9 +231,10 @@ void RL78FrameLowering::emitPrologue(MachineFunction &MF,
       // TODO: check if RP0 is actually used i.e. the function has parameters.
       // BuildMI(MBB, MBBI, dl, TII.get(RL78::PUSH_rp))
       //    .addReg(RL78::RP0, RegState::Kill);
+      const unsigned AXRegState = XCHOperandRegState(*MBBI, RL78::RP0);
       BuildMI(MBB, MBBI, dl, TII.get(RL78::XCHW_AX_rp), RL78::RP0)
           .addReg(RL78::RP6, RegState::Define)
-          .addReg(RL78::RP0, RegState::Kill)
+          .addReg(RL78::RP0, AXRegState)
           .addReg(RL78::RP6, RegState::Undef);
       BuildMI(MBB, MBBI, dl, TII.get(RL78::MOVW_rp_sp), RL78::RP0)
           .addReg(RL78::SPreg);
@@ -359,9 +391,10 @@ void RL78FrameLowering::emitEpilogue(MachineFunction &MF,
 
   if (hasFP(MF)) {
     // Restore SP from FP
+    const unsigned AXRegState = XCHOperandRegState(*MBBI, RL78::RP0);
     BuildMI(MBB, MBBI, dl, TII.get(RL78::XCHW_AX_rp), RL78::RP0)
         .addReg(RL78::RP6, RegState::Define)
-        .addReg(RL78::RP0, RegState::Kill)
+        .addReg(RL78::RP0, AXRegState)
         .addReg(RL78::RP6, RegState::Undef);
     // Dwarf regnum of AX is 0.
     unsigned CFIIndex =
@@ -440,7 +473,7 @@ void RL78FrameLowering::emitEpilogue(MachineFunction &MF,
   if (RegInfo.shouldRealignStack(MF)) {
     BuildMI(MBB, MBBI, dl, TII.get(RL78::XCHW_AX_rp), RL78::RP0)
         .addReg(RL78::RP6, RegState::Define)
-        .addReg(RL78::RP0, RegState::Kill)
+        .addReg(RL78::RP0, XCHOperandRegState(*MBBI, RL78::RP0))
         .addReg(RL78::RP6, RegState::Undef);
 
     if (isUInt<8>(NumBytesAdjusted - 2))
@@ -489,7 +522,7 @@ void RL78FrameLowering::emitEpilogue(MachineFunction &MF,
       // TODO: check if RP0 is usesd
       BuildMI(MBB, MBBI, dl, TII.get(RL78::XCHW_AX_rp), RL78::RP0)
           .addReg(RL78::RP6, RegState::Define)
-          .addReg(RL78::RP0, RegState::Kill)
+          .addReg(RL78::RP0, XCHOperandRegState(*MBBI, RL78::RP0))
           .addReg(RL78::RP6, RegState::Undef);
       BuildMI(MBB, MBBI, dl, TII.get(RL78::MOVW_rp_sp), RL78::RP0)
           .addReg(RL78::SPreg);
